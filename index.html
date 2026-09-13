@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Consulta da PTAX aplicável a rendimentos recebidos do exterior." />
+    <title>Consulta PTAX — arquivo único</title>
+    <style>
+      :root { color-scheme: dark; --background:#08110f; --panel:#101d19; --panel-light:#162720; --text:#f2f7f4; --muted:#9eb2a9; --green:#2ce89b; --green-dark:#0eb875; --border:rgba(255,255,255,.11); --danger:#ff9d9d; }
+      * { box-sizing: border-box; }
+      body { margin:0; min-height:100vh; background:radial-gradient(circle at 80% 5%,rgba(44,232,155,.12),transparent 30rem),var(--background); color:var(--text); font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+      .container { width:min(760px,calc(100% - 32px)); margin:0 auto; padding:64px 0 36px; }
+      h1,h2,p { margin-top:0; }
+      h1 { margin-bottom:14px; font-size:clamp(2rem,6vw,3.4rem); line-height:1.02; letter-spacing:-.045em; }
+      h2 { margin-bottom:22px; font-size:1.25rem; }
+      .eyebrow { margin-bottom:10px; color:var(--green); font-size:.76rem; font-weight:800; letter-spacing:.14em; text-transform:uppercase; }
+      .intro { max-width:620px; color:var(--muted); font-size:1.04rem; line-height:1.65; }
+      .panel,.result { margin-top:30px; padding:clamp(22px,5vw,34px); border:1px solid var(--border); border-radius:22px; background:rgba(16,29,25,.9); box-shadow:0 18px 60px rgba(0,0,0,.22); }
+      .fields { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+      label { display:grid; gap:8px; color:var(--muted); font-size:.88rem; font-weight:700; }
+      select,input { width:100%; border:1px solid var(--border); border-radius:12px; padding:13px 14px; background:var(--panel-light); color:var(--text); font:inherit; outline:none; }
+      select:focus,input:focus { border-color:var(--green); box-shadow:0 0 0 3px rgba(44,232,155,.12); }
+      button { width:100%; margin-top:18px; border:0; border-radius:12px; padding:14px 18px; background:var(--green); color:#042117; font:inherit; font-weight:850; cursor:pointer; transition:transform .15s,background .15s; }
+      button:hover { background:#5af0b4; transform:translateY(-1px); }
+      button:disabled { cursor:wait; opacity:.65; transform:none; }
+      .status { min-height:1.4em; margin:16px 0 0; color:var(--muted); }
+      .status.error { color:var(--danger); }
+      .hidden { display:none; }
+      .result-heading { display:flex; justify-content:space-between; gap:20px; align-items:flex-start; }
+      .badge { border:1px solid rgba(44,232,155,.28); border-radius:999px; padding:7px 11px; color:var(--green); background:rgba(44,232,155,.08); font-size:.78rem; white-space:nowrap; }
+      .quotes { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:10px 0 24px; }
+      .quote-card { display:grid; gap:5px; padding:20px; border:1px solid var(--border); border-radius:16px; background:var(--panel-light); }
+      .quote-card.featured { border-color:rgba(44,232,155,.45); background:linear-gradient(145deg,rgba(44,232,155,.14),var(--panel-light)); }
+      .quote-card span,.quote-card small { color:var(--muted); }
+      .quote-card strong { font-size:clamp(1.8rem,7vw,2.7rem); letter-spacing:-.04em; }
+      .details { color:var(--muted); font-size:.91rem; line-height:1.55; }
+      .details p { margin-bottom:7px; }
+      .details a { color:var(--green); }
+      .note { margin-top:24px; padding:16px 18px; border-left:3px solid var(--green-dark); border-radius:6px 12px 12px 6px; background:rgba(44,232,155,.07); color:#c8d8d1; line-height:1.55; }
+      footer { padding-top:24px; color:#71847c; font-size:.8rem; line-height:1.5; }
+      @media (max-width:560px) { .container{padding-top:38px} .fields,.quotes{grid-template-columns:1fr} .result-heading{display:block} .badge{display:inline-block;margin-bottom:16px} }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <header>
+        <p class="eyebrow">Banco Central do Brasil</p>
+        <h1>PTAX para rendimentos do exterior</h1>
+        <p class="intro">
+          Informe o mês e o ano em que o pagamento foi recebido. A consulta procura
+          o último dia útil da primeira quinzena do mês anterior.
+        </p>
+      </header>
+
+      <section class="panel" aria-labelledby="form-title">
+        <h2 id="form-title">Mês do recebimento</h2>
+        <form id="ptax-form">
+          <div class="fields">
+            <label>
+              Mês
+              <select id="month" required></select>
+            </label>
+            <label>
+              Ano
+              <input id="year" type="number" min="1999" max="2100" step="1" required />
+            </label>
+          </div>
+          <button id="submit-button" type="submit">Consultar PTAX</button>
+        </form>
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+      </section>
+
+      <section id="result" class="result hidden" aria-labelledby="result-title">
+        <div class="result-heading">
+          <div>
+            <p class="eyebrow">Cotação localizada</p>
+            <h2 id="result-title">PTAX de <span id="quotation-date"></span></h2>
+          </div>
+          <span id="reference-period" class="badge"></span>
+        </div>
+
+        <div class="quotes">
+          <article class="quote-card featured">
+            <span>Compra</span>
+            <strong id="buy-rate"></strong>
+            <small>R$ por US$ 1</small>
+          </article>
+          <article class="quote-card">
+            <span>Venda</span>
+            <strong id="sell-rate"></strong>
+            <small>R$ por US$ 1</small>
+          </article>
+        </div>
+
+        <div class="details">
+          <p><strong>Data e hora da cotação:</strong> <span id="quotation-time"></span></p>
+          <p><strong>Fonte:</strong> API PTAX (Olinda), Banco Central do Brasil</p>
+          <a id="source-link" href="#" target="_blank" rel="noopener noreferrer">Abrir consulta utilizada</a>
+        </div>
+
+        <aside class="note">
+          Para rendimento tributável recebido do exterior no Carnê-Leão, a regra geral
+          utiliza a <strong>cotação de compra</strong>. Confirme a regra aplicável ao seu
+          caso e ao respectivo ano-calendário.
+        </aside>
+      </section>
+
+      <footer>
+        A página não armazena os dados consultados. É necessário acesso à internet para
+        obter as cotações diretamente do Banco Central.
+      </footer>
+    </main>
+    <script>
+      const API_BASE="https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoDolarDia(dataCotacao=@dataCotacao)";
+      const monthNames=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+      const form=document.querySelector("#ptax-form"),monthInput=document.querySelector("#month"),yearInput=document.querySelector("#year"),button=document.querySelector("#submit-button"),status=document.querySelector("#status"),result=document.querySelector("#result");
+
+      function initializeForm(){
+        monthNames.forEach((name,index)=>{const option=document.createElement("option");option.value=index+1;option.textContent=name;monthInput.append(option)});
+        const now=new Date();monthInput.value=now.getMonth()+1;yearInput.value=now.getFullYear();
+      }
+      function previousMonth(month,year){return month===1?{month:12,year:year-1}:{month:month-1,year}}
+      function apiDate(day,month,year){return `${String(month).padStart(2,"0")}-${String(day).padStart(2,"0")}-${year}`}
+      function buildUrl(day,month,year){
+        const date=apiDate(day,month,year);
+        const params=new URLSearchParams({"@dataCotacao":`'${date}'`,"$top":"100","$skip":"0","$format":"json","$select":"cotacaoCompra,cotacaoVenda,dataHoraCotacao"});
+        return `${API_BASE}?${params}`;
+      }
+      async function findQuotation(month,year){
+        for(let day=15;day>=1;day--){
+          const url=buildUrl(day,month,year);
+          const response=await fetch(url,{headers:{Accept:"application/json"}});
+          if(!response.ok)throw new Error(`O Banco Central respondeu com erro ${response.status}.`);
+          const data=await response.json();
+          if(Array.isArray(data.value)&&data.value.length){
+            const quotations=[...data.value].sort((a,b)=>a.dataHoraCotacao.localeCompare(b.dataHoraCotacao));
+            return {quotation:quotations.at(-1),url};
+          }
+        }
+        throw new Error("Nenhuma cotação foi encontrada na primeira quinzena do mês anterior.");
+      }
+      function parseBcbDate(dateValue){
+        const [datePart,timePart="00:00:00"]=dateValue.split(" ");
+        const [year,month,day]=datePart.split("-").map(Number);
+        const [hour,minute,secondsPart]=timePart.split(":");
+        return new Date(year,month-1,day,Number(hour),Number(minute),Math.floor(Number(secondsPart)));
+      }
+      function formatDate(value){return new Intl.DateTimeFormat("pt-BR",{dateStyle:"long"}).format(parseBcbDate(value))}
+      function formatDateTime(value){return new Intl.DateTimeFormat("pt-BR",{dateStyle:"short",timeStyle:"medium"}).format(parseBcbDate(value))}
+      function formatRate(value){return Number(value).toLocaleString("pt-BR",{minimumFractionDigits:4,maximumFractionDigits:4})}
+      function displayResult(quotation,url,receiptMonth,receiptYear,referenceMonth,referenceYear){
+        document.querySelector("#quotation-date").textContent=formatDate(quotation.dataHoraCotacao);
+        document.querySelector("#quotation-time").textContent=formatDateTime(quotation.dataHoraCotacao);
+        document.querySelector("#buy-rate").textContent=formatRate(quotation.cotacaoCompra);
+        document.querySelector("#sell-rate").textContent=formatRate(quotation.cotacaoVenda);
+        document.querySelector("#reference-period").textContent=`${monthNames[receiptMonth-1]} de ${receiptYear}`;
+        document.querySelector("#source-link").href=url;
+        result.classList.remove("hidden");
+        status.textContent=`Referência pesquisada: 1ª quinzena de ${monthNames[referenceMonth-1]} de ${referenceYear}.`;
+      }
+      form.addEventListener("submit",async event=>{
+        event.preventDefault();result.classList.add("hidden");status.classList.remove("error");status.textContent="Consultando o Banco Central…";button.disabled=true;
+        try{
+          const receiptMonth=Number(monthInput.value),receiptYear=Number(yearInput.value);
+          if(!Number.isInteger(receiptYear)||receiptYear<1999||receiptYear>2100)throw new Error("Informe um ano válido entre 1999 e 2100.");
+          const reference=previousMonth(receiptMonth,receiptYear);
+          const {quotation,url}=await findQuotation(reference.month,reference.year);
+          displayResult(quotation,url,receiptMonth,receiptYear,reference.month,reference.year);
+        }catch(error){status.textContent=`${error.message} Verifique sua conexão e tente novamente.`;status.classList.add("error")}
+        finally{button.disabled=false}
+      });
+      initializeForm();
+    </script>
+  </body>
+</html>
